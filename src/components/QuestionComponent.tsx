@@ -1,16 +1,15 @@
-import { View, Text, StyleSheet } from 'react-native'
-import React from 'react'
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-const QuestionComponent = ({ question, onSubmit }) => {
+const QuestionComponent = ({ question }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}What is the name of the coffee shop you visited yesterday at 2pm?</Text>
-
+      <Text style={styles.questionText}>{question}</Text>
     </View>
-  )
-}
+  );
+};
 
-export default QuestionComponent
+export default QuestionComponent;
 
 const styles = StyleSheet.create({
   container: {
@@ -27,8 +26,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 12,
-    lineHeight: 24,
-
+    lineHeight: 32,
+    textAlign: 'center',
   },
 });
-

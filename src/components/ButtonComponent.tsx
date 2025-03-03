@@ -1,15 +1,15 @@
-import { View, Text, Button, StyleSheet, TouchableOpacity } from 'react-native'
-import React from 'react'
+import React from 'react';
+import { Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-const ButtonComponent = () => {
+const ButtonComponent = ({ onPress }) => {
   return (
-    <TouchableOpacity style={styles.button}>
+    <TouchableOpacity style={styles.button} onPress={onPress}>
       <Text style={styles.buttonTitle}>Next</Text>
     </TouchableOpacity>
-  )
-}
+  );
+};
 
-export default ButtonComponent
+export default ButtonComponent;
 
 const styles = StyleSheet.create({
   button: {
@@ -21,12 +21,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginHorizontal: 20,
   },
-
   buttonTitle: {
     fontFamily: 'Poppins',
     fontSize: 16,
-    fontWeight: 'semibold',
+    fontWeight: '600',
     color: '#FFFFFF',
-  }
-
-})
+  },
+});

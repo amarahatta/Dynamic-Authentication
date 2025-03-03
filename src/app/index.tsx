@@ -1,17 +1,6 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import ButtonComponent from '../components/ButtonComponent'
-import TextComponent from '../components/TextComponent'
+import React from 'react';
+import QuestionScreen from '../screens/QuestionScreen'
 
-const index = () => {
-  return (
-    <View>
-
-      <TextComponent />
-      <ButtonComponent />
-
-    </View>
-  )
+export default function App() {
+  return <QuestionScreen />;
 }
-
-export default index
