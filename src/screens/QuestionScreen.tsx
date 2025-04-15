@@ -37,7 +37,7 @@ const QuestionScreen = () => {
         setTimeout(() => {
           setTimerKey(prev => prev + 1);
           setTimerActive(true);
-        }, 100);
+        }, 1000);
       } else {
         setFeedback("Incorrect Answer. Try again!");
       }
@@ -48,7 +48,6 @@ const QuestionScreen = () => {
   };
 
   const handleSubmit = () => {
-    setTimerActive(false);
     validateAnswer();
   };
 
