@@ -1,10 +1,37 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import { View, Text, StyleSheet, SafeAreaView, Image } from 'react-native';
 import EmergencyButton from '../components/EmergencyButton';
+import CountdownTimer from '../components/CountdownTimer';
+
+type LockScreenProps = {
+  switchToQuestionScreen: () => void;
+  incorrectAttempts: number;
+};
 
 
 
-const LockScreen = () => {
+const LockScreen = ({switchToQuestionScreen, incorrectAttempts}: LockScreenProps) => {
+  const [timerActive, setTimerActive] = useState(true);
+  const [timerKey, setTimerKey] = useState(0);
+
+  const handleTimeUp = () => {
+    setTimerActive(false);
+    switchToQuestionScreen();
+  };
+  
+  useEffect(() => {
+    // Force a re-render of CountdownTimer whenever incorrectAttempts changes
+    setTimerKey(prev => prev + 1);
+  }, [incorrectAttempts]);
+
+  const getLockDuration = () => {
+    if (incorrectAttempts === 3) return 5; // 30 seconds
+    if (incorrectAttempts === 4) return 10; // 1 minute
+    if (incorrectAttempts === 5) return 30; // 3 minutes
+    return 45; // 5 minutes or whatever you want for 4+ wrong
+  };
+  
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <View style={styles.container}>
@@ -25,10 +52,15 @@ const LockScreen = () => {
           </Text>
 
           <Text style={styles.timer}>
-            Try Again in 1 Minute
+            Try Again in {getLockDuration()} seconds
           </Text>
         </View>
-
+        <CountdownTimer
+            key={timerKey}
+            duration={getLockDuration()}
+            onTimeUp={handleTimeUp}
+            isActive={timerActive}
+          />
         <EmergencyButton />
       </View>
     </SafeAreaView>
@@ -87,3 +119,4 @@ const styles = StyleSheet.create({
 });
 
 export default LockScreen;
+
