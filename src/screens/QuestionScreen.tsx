@@ -14,17 +14,28 @@ type QuestionScreenProps = {
   handleValidationSuccess: () => void;
   incorrectAttempts: number;
   resetIncorrectAttempts: () => void;
+  switchToNextScreen: () => void;
+  handleCorrectAnswer: () => void;
+  handleIncorrectAnswer: () => void;
+  correctAnswers: number;
 };
 
-
-
-const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValidationSuccess, incorrectAttempts, resetIncorrectAttempts}: QuestionScreenProps) => {
+const QuestionScreen = ({ 
+  switchToLockScreen, 
+  handleIncorrectAttempt, 
+  handleValidationSuccess, 
+  incorrectAttempts, 
+  resetIncorrectAttempts, 
+  switchToNextScreen,
+  handleCorrectAnswer,
+  handleIncorrectAnswer,
+  correctAnswers
+}: QuestionScreenProps) => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
   const [timerActive, setTimerActive] = useState(true);
   const [timerKey, setTimerKey] = useState(0);
-  const [correctAnswers, setCorrectAnswers] = useState(0);
   const [prevQuestion, setPrevQuestion] = useState("");
   // Initialize Gemini API
   const geminiKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
@@ -34,7 +45,7 @@ const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValid
   useEffect(() => {
     generateNewQuestion();
   }, []);
-  
+
   const selectRandomQuestion = async () => {
     let genQuestionList = [
       "Generate a simple addition math question",
@@ -46,7 +57,7 @@ const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValid
     let randomIndex = Math.floor(Math.random() * (await genQuestionList).length);
     let selectedQuestion = genQuestionList[randomIndex];
     console.log(selectedQuestion);
-    while(prevQuestion.includes(selectedQuestion)){
+    while (prevQuestion.includes(selectedQuestion)) {
       randomIndex = Math.floor(Math.random() * (await genQuestionList).length);
       selectedQuestion = genQuestionList[randomIndex];
     }
@@ -56,10 +67,15 @@ const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValid
   };
 
   const handleTimeUp = () => {
+    setTimerActive(false);
+    setFeedback("Time's up! Moving to next question.");
+    handleIncorrectAnswer();
+    handleIncorrectAttempt();
     setTimeout(() => {
       setTimerKey(prev => prev + 1);
       setTimerActive(true);
       generateNewQuestion();
+      switchToNextScreen();
     }, 1000);
   };
 
@@ -70,13 +86,13 @@ const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValid
       const response = await result.response;
       const newQuestion = response.text();
       setQuestion(newQuestion);
+      setAnswer("");
+      setFeedback("");
     } catch (error) {
       console.error("Error generating question:", error);
       setQuestion("What is 2 + 2?"); // fallback
     }
   };
-  
-  
 
   const validateAnswer = async () => {
     try {
@@ -89,32 +105,27 @@ const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValid
       if (responseText.text().toLowerCase().includes("yes")) {
         setFeedback("Correct Answer! Well done.");
         setTimerActive(false);
-        setCorrectAnswers(prev => prev + 1);
-        if(correctAnswers == 2)
-          {
-            handleValidationSuccess();
-          }
+        handleCorrectAnswer();
         resetIncorrectAttempts();
         setTimeout(() => {
           setTimerKey(prev => prev + 1);
           setTimerActive(true);
           generateNewQuestion();
+          switchToNextScreen();
         }, 1000);
       } else {
         setFeedback("Incorrect Answer. Try again!");
-        if(correctAnswers > 0)
-          {
-            setCorrectAnswers(prev => prev - 1);
-          }
-        if(incorrectAttempts < 2){ 
+        handleIncorrectAnswer();
+        if (incorrectAttempts < 2) {
           handleIncorrectAttempt();
           setTimeout(() => {
             setTimerKey(prev => prev + 1);
             setTimerActive(true);
             generateNewQuestion();
+            switchToNextScreen();
           }, 1000);
         }
-        else{
+        else {
           handleIncorrectAttempt();
           switchToLockScreen(incorrectAttempts + 1);
         }
@@ -135,8 +146,8 @@ const QuestionScreen = ({switchToLockScreen, handleIncorrectAttempt, handleValid
       <View style={styles.container}>
         <View style={styles.topContent}>
           <Text style={styles.title}>Answer the questions to regain access</Text>
-          <Text style={styles.title}>Number of Incorrect attempts: {incorrectAttempts} Number of Correct attempts: {correctAnswers}</Text>
-          <QuestionComponent question = {question} />
+          <Text style={styles.title}>Incorrect attempts: {incorrectAttempts} Correct attempts: {correctAnswers}</Text>
+          <QuestionComponent question={question} />
           <TextComponent answer={answer} setAnswer={setAnswer} onSubmit={handleSubmit} />
           {feedback && <Text style={styles.feedbackText}>{feedback}</Text>}
         </View>
@@ -177,7 +188,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   title: {
-    color: '#FFFFFF',
+    color: '#ACADB9',
     fontSize: 16,
     fontFamily: 'Poppins',
     textAlign: 'center',

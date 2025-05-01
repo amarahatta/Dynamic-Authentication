@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 
-const ValidationScreen = () => {
+type ValidationScreenProps = {
+  resetIncorrectAttempts: () => void;
+  resetCorrectAnswers: () => void;
+};
+
+const ValidationScreen = ({ resetIncorrectAttempts, resetCorrectAnswers }: ValidationScreenProps) => {
+  useEffect(() => {
+    // Reset both counters when the validation screen mounts
+    resetIncorrectAttempts();
+    resetCorrectAnswers();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
