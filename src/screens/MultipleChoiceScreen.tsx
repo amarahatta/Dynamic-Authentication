@@ -82,27 +82,51 @@ const MultipleChoiceScreen = ({
 
       const storedQuestions = await loadAskedQuestions();
 
-      const category = await selectRandomCategory();
-      const prompt = `Generate a multiple choice question about ${category}. Avoid repeating the following 10 recent questions:\n${storedQuestions
+      const prompt = `To generate advanced security questions, please use the following information and try to emulate your own data for these:
+Device Activity Metadata:
+{
+device_activity_metadata
+}
+(e.g., app usage, file names, recent locations, device-specific configurations)
+User Preferences:
+{
+user_preferences
+}
+(e.g., preferred apps, frequently accessed files, common usage times)
+Follow these guidelines when generating the security questions:
+Reference Unique Device Activity or Metadata: Base the questions on specific, unique aspects of the user's device activity or metadata.
+Avoid Common Personal Details: Do not use easily guessed personal details such as mother's maiden name or pet name.
+Require Specific Knowledge: Ensure that the questions require specific knowledge that only the legitimate user of the device would possess.
+Use Natural Language: Phrase the questions in a natural, conversational way but ensure they are still obscure enough to resist social engineering.
+Focus on Recent Usage Patterns: Base the questions on recent, consistent, or memorable device usage patterns.
+Avoid repeating the following 10 recent questions:
+${storedQuestions
         .map((q, i) => `${i + 1}. ${q}`)
-        .join('\n')}\n\nFormat:\nQuestion: [your question]\nOptions:\nA) ...\nB) ...\nC) ...\nD) ...\nCorrect Answer: [A-D]`;
+        .join('\n')}
+Do not give me anything else but ONLY Output a single question and format the question as EXACTLY as a multiple choice question with options A through D, with only one correct answer do not add anything else extra to the output:
+Question: [your question]
+Options:
+A) ...
+B) ...
+C) ...
+D) ...
+Correct Answer Option:`;
 
-      console.log("MCQ PROMPT: ",prompt);
+      console.log("MCQ PROMPT: ", prompt);
       const result = await model.generateContent(prompt);
       const responseText = await result.response.text();
+      console.log("GEMINI RESPONSE: ", responseText);
 
       const lines = responseText.split('\n');
       const questionLine = lines.find(line => line.startsWith('Question:'));
       const optionsLines = lines.filter(line => line.match(/^[A-D]\)/));
-      const correctAnswerLine = lines.find(line => line.startsWith('Correct Answer:'));
+      const correctAnswerLine = lines.find(line => line.startsWith('Correct Answer Option:'));
 
       if (questionLine && optionsLines.length === 4 && correctAnswerLine) {
         const questionText = questionLine.replace('Question:', '').trim();
         const optionsText = optionsLines.map(line => line.split(')')[1].trim());
-        const correctAnswerLetter = correctAnswerLine.replace('Correct Answer:', '').trim();
+        const correctAnswerLetter = correctAnswerLine.replace('Correct Answer Option:', '').trim();
         const correctAnswerIndex = correctAnswerLetter.charCodeAt(0) - 'A'.charCodeAt(0);
-
-
 
         if (storedQuestions.includes(questionText)) {
           console.log('Duplicate question detected. Retrying...');

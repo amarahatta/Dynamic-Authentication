@@ -53,7 +53,8 @@ export default function App() {
   };
 
   const switchToNextScreen = () => {
-    setCurrentScreen(getNextScreen());
+    //setCurrentScreen(getNextScreen());
+    setCurrentScreen('multipleChoice');
   };
 
   return (
