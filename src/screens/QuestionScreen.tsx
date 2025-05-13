@@ -6,6 +6,7 @@ import ButtonComponent from '../components/ButtonComponent';
 import CountdownTimer from '../components/CountdownTimer';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 type QuestionScreenProps = {
@@ -37,14 +38,40 @@ const QuestionScreen = ({
   const [timerActive, setTimerActive] = useState(true);
   const [timerKey, setTimerKey] = useState(0);
   const [prevQuestion, setPrevQuestion] = useState("");
+  const [questionHistory, setQuestionHistory] = useState([]);
   // Initialize Gemini API
   const geminiKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(geminiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   useEffect(() => {
+    (async () => {
+      const loadedHistory = await loadHistory();
+      setQuestionHistory(loadedHistory);
+      console.log("Loaded question history:", loadedHistory);
+    })();
     generateNewQuestion();
   }, []);
+
+  const saveHistory = async (history) => {
+    try {
+      await AsyncStorage.setItem('questionHistory', JSON.stringify(history));
+    } catch (e) {
+      console.error('Error saving history:', e);
+    }
+  };
+  
+  const loadHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('questionHistory');
+      console.log(stored);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('Error loading history:', e);
+      return [];
+    }
+  };
+  
 
   const selectRandomQuestion = async () => {
     let genQuestionList = [
@@ -81,14 +108,50 @@ const QuestionScreen = ({
 
   const generateNewQuestion = async () => {
     try {
-      const prompt = await selectRandomQuestion();
+      //const prompt = await selectRandomQuestion();
+      const recentHistory = questionHistory.slice(-10);
+      const historyText = recentHistory.map((q, i) => `${i + 1}. ${q}`).join("\n");
+      console.log("History text sent to Gemini:\n" + historyText);
+  
+      const prompt = `
+      ${await selectRandomQuestion()}.
+      Do NOT repeat any of these previous questions:
+      ${historyText}
+      `;
+      console.log("THIS IS PROMPT: ", prompt);
       const result = await model.generateContent(prompt);
+      const newQuestion = result.response.text().trim();
+
+      if (!questionHistory.includes(newQuestion)) {
+        setQuestion(newQuestion);
+        
+        setQuestionHistory(prevHistory => {
+          const updated = [...prevHistory, newQuestion];
+          saveHistory(updated); // save without awaiting
+          console.log("Updated question history:");
+          updated.forEach((q, i) => {
+            console.log(`${i + 1}. ${q}`);
+          });
+          return updated;
+        });
+        
+      } else {
+        console.warn("Repeated question, retrying...");
+        generateNewQuestion(); // Optional: retry
+      }
+      
+
+      /**const result = await model.generateContent(prompt);
       const response = await result.response;
       const newQuestion = response.text();
       setQuestion(newQuestion);
       setAnswer("");
       setFeedback("");
     } catch (error) {
+      console.error("Error generating question:", error);
+      setQuestion("What is 2 + 2?"); // fallback
+    }*/
+    }catch (error) {
       console.error("Error generating question:", error);
       setQuestion("What is 2 + 2?"); // fallback
     }

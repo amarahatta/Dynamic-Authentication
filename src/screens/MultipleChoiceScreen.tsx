@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AnswerOptionsComponent from '../components/AnswerOptionComponent';
 import ButtonComponent from '../components/ButtonComponent';
 import CountdownTimer from '../components/CountdownTimer';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Constants from 'expo-constants';
-
 
 type MultipleChoiceScreenProps = {
   switchToLockScreen: (attempts: number) => void;
@@ -19,6 +19,25 @@ type MultipleChoiceScreenProps = {
   correctAnswers: number;
 };
 
+const QUESTIONS_STORAGE_KEY = '@asked_questions';
+
+const loadAskedQuestions = async (): Promise<string[]> => {
+  try {
+    const stored = await AsyncStorage.getItem(QUESTIONS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error('Failed to load questions:', e);
+    return [];
+  }
+};
+
+const saveAskedQuestions = async (questions: string[]) => {
+  try {
+    await AsyncStorage.setItem(QUESTIONS_STORAGE_KEY, JSON.stringify(questions));
+  } catch (e) {
+    console.error('Failed to save questions:', e);
+  }
+};
 
 const MultipleChoiceScreen = ({
   switchToLockScreen,
@@ -31,102 +50,123 @@ const MultipleChoiceScreen = ({
   handleIncorrectAnswer,
   correctAnswers
 }: MultipleChoiceScreenProps) => {
-  const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState([]);
-  const [correctOption, setCorrectOption] = useState("");
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [feedback, setFeedback] = useState("");
+  const [question, setQuestion] = useState('');
+  const [options, setOptions] = useState<string[]>([]);
+  const [correctOption, setCorrectOption] = useState('');
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState('');
   const [timerActive, setTimerActive] = useState(true);
   const [timerKey, setTimerKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [prevQuestion, setPrevQuestion] = useState("");
+  const [askedQuestions, setAskedQuestions] = useState<string[]>([]);
 
-  // Initialize Gemini API
   const geminiKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
   const genAI = new GoogleGenerativeAI(geminiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const selectRandomCategory = async () => {
     const categories = [
-      "technology",
-      "cyber security",
-      "digital privacy",
-      "smartphone usage",
-      "computer basics"
+      'technology',
+      'cyber security',
+      'digital privacy',
+      'smartphone usage',
+      'computer basics'
     ];
-
-    let randomIndex = Math.floor(Math.random() * categories.length);
-    let selectedCategory = categories[randomIndex];
-
-    // Avoid repeating the same category
-    while (prevQuestion.includes(selectedCategory)) {
-      randomIndex = Math.floor(Math.random() * categories.length);
-      selectedCategory = categories[randomIndex];
-    }
-
-    setPrevQuestion(selectedCategory);
-    return selectedCategory;
+    return categories[Math.floor(Math.random() * categories.length)];
   };
 
   const generateQuestion = async () => {
     try {
       setIsLoading(true);
       setSelectedOption(null);
-      const category = await selectRandomCategory();
-      const prompt = `Generate a multiple choice question about ${category} with exactly 4 answer options. Format the response as:
-      Question: [your question]
-      Options:
-      A) [option A]
-      B) [option B]
-      C) [option C]
-      D) [option D]
-      Correct Answer: [letter of correct option]`;
+
+      const storedQuestions = await loadAskedQuestions();
+
+      const prompt = `To generate advanced security questions, please use the following information and try to emulate your own data for these:
+Device Activity Metadata:
+{
+device_activity_metadata
+}
+(e.g., app usage, file names, recent locations, device-specific configurations)
+User Preferences:
+{
+user_preferences
+}
+(e.g., preferred apps, frequently accessed files, common usage times)
+Follow these guidelines when generating the security questions:
+Reference Unique Device Activity or Metadata: Base the questions on specific, unique aspects of the user's device activity or metadata.
+Avoid Common Personal Details: Do not use easily guessed personal details such as mother's maiden name or pet name.
+Require Specific Knowledge: Ensure that the questions require specific knowledge that only the legitimate user of the device would possess.
+Use Natural Language: Phrase the questions in a natural, conversational way but ensure they are still obscure enough to resist social engineering.
+Focus on Recent Usage Patterns: Base the questions on recent, consistent, or memorable device usage patterns.
+Avoid repeating the following 10 recent questions:
+${storedQuestions
+        .map((q, i) => `${i + 1}. ${q}`)
+        .join('\n')}
+Do not give me anything else but ONLY Output a single question and format the question as EXACTLY as a multiple choice question with options A through D, with only one correct answer do not add anything else extra to the output:
+Question: [your question]
+Options:
+A) ...
+B) ...
+C) ...
+D) ...
+Correct Answer Option:`;
+
+      console.log("MCQ PROMPT: ", prompt);
       const result = await model.generateContent(prompt);
       const responseText = await result.response.text();
-      //Extract question, options, and correct answer
+      console.log("GEMINI RESPONSE: ", responseText);
+
       const lines = responseText.split('\n');
       const questionLine = lines.find(line => line.startsWith('Question:'));
       const optionsLines = lines.filter(line => line.match(/^[A-D]\)/));
-      const correctAnswerLine = lines.find(line => line.startsWith('Correct Answer:'));
+      const correctAnswerLine = lines.find(line => line.startsWith('Correct Answer Option:'));
 
       if (questionLine && optionsLines.length === 4 && correctAnswerLine) {
         const questionText = questionLine.replace('Question:', '').trim();
         const optionsText = optionsLines.map(line => line.split(')')[1].trim());
-        const correctAnswerLetter = correctAnswerLine.replace('Correct Answer:', '').trim();
+        const correctAnswerLetter = correctAnswerLine.replace('Correct Answer Option:', '').trim();
         const correctAnswerIndex = correctAnswerLetter.charCodeAt(0) - 'A'.charCodeAt(0);
+
+        if (storedQuestions.includes(questionText)) {
+          console.log('Duplicate question detected. Retrying...');
+          generateQuestion();
+          return;
+        }
+
+        const updatedQuestions = [questionText, ...storedQuestions].slice(0, 10);
+        console.log("Updated Questions: ", updatedQuestions);
+        await saveAskedQuestions(updatedQuestions);
+        setAskedQuestions(updatedQuestions);
 
         setQuestion(questionText);
         setOptions(optionsText);
         setCorrectOption(optionsText[correctAnswerIndex]);
       } else {
-        // Fallback question
-        setQuestion("Which of these is a good password practice?");
-        setOptions([
-          "Using the same password for all accounts",
-          "Using a combination of letters, numbers, and symbols",
-          "Using your birth date",
-          "Sharing your password with friends"
-        ]);
-        setCorrectOption("Using a combination of letters, numbers, and symbols");
+        throw new Error('Malformed response from Gemini');
       }
     } catch (error) {
-      console.error("Error generating question:", error);
-      // Fallback question 
-      setQuestion("Which of these is a good password practice?");
+      console.error('Error generating question:', error);
+      setQuestion('Which of these is a good password practice?');
       setOptions([
-        "Using the same password for all accounts",
-        "Using a combination of letters, numbers, and symbols",
-        "Using your birth date",
-        "Sharing your password with friends"
+        'Using the same password for all accounts',
+        'Using a combination of letters, numbers, and symbols',
+        'Using your birth date',
+        'Sharing your password with friends'
       ]);
-      setCorrectOption("Using a combination of letters, numbers, and symbols");
+      setCorrectOption('Using a combination of letters, numbers, and symbols');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    generateQuestion();
+    const init = async () => {
+      const stored = await loadAskedQuestions();
+      setAskedQuestions(stored);
+      generateQuestion();
+    };
+    init();
   }, []);
 
   const handleTimeUp = () => {
@@ -136,7 +176,7 @@ const MultipleChoiceScreen = ({
     handleIncorrectAttempt();
     setTimeout(() => {
       setSelectedOption(null);
-      setFeedback("");
+      setFeedback('');
       setTimerKey(prev => prev + 1);
       setTimerActive(true);
       generateQuestion();
@@ -144,13 +184,13 @@ const MultipleChoiceScreen = ({
     }, 1000);
   };
 
-  const handleOptionSelect = (index) => {
+  const handleOptionSelect = (index: number) => {
     setSelectedOption(index);
   };
 
   const validateAnswer = async () => {
     if (selectedOption === null) {
-      setFeedback("Please select an option first.");
+      setFeedback('Please select an option first.');
       return;
     }
 
@@ -158,30 +198,28 @@ const MultipleChoiceScreen = ({
     const isCorrect = selectedText === correctOption;
 
     if (isCorrect) {
-      setFeedback("Correct Answer");
+      setFeedback('Correct Answer');
       setTimerActive(false);
       handleCorrectAnswer();
       resetIncorrectAttempts();
-
       setTimeout(() => {
         setSelectedOption(null);
-        setFeedback("");
+        setFeedback('');
         setTimerKey(prev => prev + 1);
         setTimerActive(true);
         generateQuestion();
         switchToNextScreen();
       }, 1000);
     } else {
-      setFeedback("Incorrect Answer.");
+      setFeedback('Incorrect Answer.');
       setTimerActive(false);
       handleIncorrectAnswer();
 
       if (incorrectAttempts < 2) {
         handleIncorrectAttempt();
-
         setTimeout(() => {
           setSelectedOption(null);
-          setFeedback("");
+          setFeedback('');
           setTimerKey(prev => prev + 1);
           setTimerActive(true);
           generateQuestion();
@@ -203,28 +241,22 @@ const MultipleChoiceScreen = ({
       <View style={styles.container}>
         <View style={styles.topContent}>
           <Text style={styles.title}>Answer the questions to regain access</Text>
-          <Text style={styles.title}>Incorrect attempts: {incorrectAttempts} Correct attempts: {correctAnswers}</Text>
+          <Text style={styles.title}>
+            Incorrect attempts: {incorrectAttempts} Correct attempts: {correctAnswers}
+          </Text>
 
           {isLoading ? (
             <Text style={styles.loadingText}>Loading question...</Text>
           ) : (
             <>
               <Text style={styles.questionText}>{question}</Text>
-              <AnswerOptionsComponent
-                options={options}
-                onSelect={handleOptionSelect}
-              />
+              <AnswerOptionsComponent options={options} onSelect={handleOptionSelect} />
               {feedback && <Text style={styles.feedbackText}>{feedback}</Text>}
             </>
           )}
         </View>
         <View style={styles.bottomContent}>
-          <CountdownTimer
-            key={timerKey}
-            duration={30}
-            onTimeUp={handleTimeUp}
-            isActive={timerActive}
-          />
+          <CountdownTimer key={timerKey} duration={30} onTimeUp={handleTimeUp} isActive={timerActive} />
           <ButtonComponent onPress={handleSubmit} />
         </View>
       </View>
@@ -237,7 +269,7 @@ export default MultipleChoiceScreen;
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#000000'
   },
   container: {
     flex: 1,
@@ -245,22 +277,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 40,
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   topContent: {
-    width: '100%',
+    width: '100%'
   },
   bottomContent: {
     width: '100%',
     paddingBottom: 30,
-    marginTop: 'auto',
+    marginTop: 'auto'
   },
   title: {
     color: '#ACADB9',
     fontSize: 16,
     fontFamily: 'Poppins',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   questionText: {
     color: '#FFFFFF',
@@ -268,23 +300,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'Poppins',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 30
   },
   loadingText: {
     color: '#FFFFFF',
     fontSize: 18,
     textAlign: 'center',
     marginTop: 40,
-    fontFamily: 'Poppins',
+    fontFamily: 'Poppins'
   },
   feedbackText: {
     color: '#FFFFFF',
     fontSize: 18,
     textAlign: 'center',
     marginTop: 20,
-    fontFamily: 'Poppins',
-  },
+    fontFamily: 'Poppins'
+  }
 });
-
-
-
