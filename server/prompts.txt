@@ -1,0 +1,20 @@
+Generate a security question about the apps a user has recently used. Answer: Youtube
+Generate a security question about the previous call data. Answer: Mom
+Generate a security question about recent navigation activity. Answer: San Jose State University
+Generate a security question about recent text messages. Answer: Aadarsh
+Generate a security Question about last song listened to: Answer: Eye of the Tiger
+Generate a security question about the last calendar reminder set. Answer: Dentist Appointment
+Generate a security question about the last smart device controlled. Answer: Living Room Thermostat
+Generate a security question about the last video streaming app used. Answer: Netflix
+Generate a security question about the last podcast listened to. Answer: Design Better
+Generate a security question about the most recent cloud storage file accessed. Answer: Resume_2025.pdf
+Generate a security question about the last rideshare destination. Answer: San Jose Airport
+Generate a security question about the most recent camera photo subject. Answer: Coffee Cup
+Generate a security question about the last email app opened. Answer: Gmail
+Generate a security question about the last device unlock method used. Answer: Face ID
+Generate a security question about the most recent silent mode toggle. Answer: Enabled at 9:00 PM
+Generate a security question about the last QR code scanned. Answer: Café Loyalty Card
+Generate a security question about the last battery-saving setting used. Answer: Low Power Mode
+Generate a security question about the most recently viewed note. Answer: Grocery List
+Generate a security question about the last screen brightness adjustment. Answer: 60%
+Generate a security question about the most recent voice assistant request. Answer: Set timer for 15 minutes

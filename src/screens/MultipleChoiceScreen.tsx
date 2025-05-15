@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import AnswerOptionsComponent from '../components/AnswerOptionComponent';
 import ButtonComponent from '../components/ButtonComponent';
 import CountdownTimer from '../components/CountdownTimer';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import Constants from 'expo-constants';
 
 type MultipleChoiceScreenProps = {
   switchToLockScreen: (attempts: number) => void;
@@ -17,26 +15,6 @@ type MultipleChoiceScreenProps = {
   handleCorrectAnswer: () => void;
   handleIncorrectAnswer: () => void;
   correctAnswers: number;
-};
-
-const QUESTIONS_STORAGE_KEY = '@asked_questions';
-
-const loadAskedQuestions = async (): Promise<string[]> => {
-  try {
-    const stored = await AsyncStorage.getItem(QUESTIONS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (e) {
-    console.error('Failed to load questions:', e);
-    return [];
-  }
-};
-
-const saveAskedQuestions = async (questions: string[]) => {
-  try {
-    await AsyncStorage.setItem(QUESTIONS_STORAGE_KEY, JSON.stringify(questions));
-  } catch (e) {
-    console.error('Failed to save questions:', e);
-  }
 };
 
 const MultipleChoiceScreen = ({
@@ -58,115 +36,58 @@ const MultipleChoiceScreen = ({
   const [timerActive, setTimerActive] = useState(true);
   const [timerKey, setTimerKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [askedQuestions, setAskedQuestions] = useState<string[]>([]);
 
-  const geminiKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
-  const genAI = new GoogleGenerativeAI(geminiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-  const selectRandomCategory = async () => {
-    const categories = [
-      'technology',
-      'cyber security',
-      'digital privacy',
-      'smartphone usage',
-      'computer basics'
-    ];
-    return categories[Math.floor(Math.random() * categories.length)];
-  };
+  const backendUrl = Constants.expoConfig?.extra?.BACKEND_URL;
 
   const generateQuestion = async () => {
-    try {
-      setIsLoading(true);
-      setSelectedOption(null);
+  try {
+    setIsLoading(true);
+    const response = await fetch(`${backendUrl}/generate-question`);
+    const data = await response.json();
 
-      const storedQuestions = await loadAskedQuestions();
-
-      const prompt = `To generate advanced security questions, please use the following information and try to emulate your own data for these:
-Device Activity Metadata:
-{
-device_activity_metadata
-}
-(e.g., app usage, file names, recent locations, device-specific configurations)
-User Preferences:
-{
-user_preferences
-}
-(e.g., preferred apps, frequently accessed files, common usage times)
-Follow these guidelines when generating the security questions:
-Reference Unique Device Activity or Metadata: Base the questions on specific, unique aspects of the user's device activity or metadata.
-Avoid Common Personal Details: Do not use easily guessed personal details such as mother's maiden name or pet name.
-Require Specific Knowledge: Ensure that the questions require specific knowledge that only the legitimate user of the device would possess.
-Use Natural Language: Phrase the questions in a natural, conversational way but ensure they are still obscure enough to resist social engineering.
-Focus on Recent Usage Patterns: Base the questions on recent, consistent, or memorable device usage patterns.
-Avoid repeating the following 10 recent questions:
-${storedQuestions
-        .map((q, i) => `${i + 1}. ${q}`)
-        .join('\n')}
-Do not give me anything else but ONLY Output a single question and format the question as EXACTLY as a multiple choice question with options A through D, with only one correct answer do not add anything else extra to the output:
-Question: [your question]
-Options:
-A) ...
-B) ...
-C) ...
-D) ...
-Correct Answer Option:`;
-
-      console.log("MCQ PROMPT: ", prompt);
-      const result = await model.generateContent(prompt);
-      const responseText = await result.response.text();
-      console.log("GEMINI RESPONSE: ", responseText);
-
-      const lines = responseText.split('\n');
-      const questionLine = lines.find(line => line.startsWith('Question:'));
-      const optionsLines = lines.filter(line => line.match(/^[A-D]\)/));
-      const correctAnswerLine = lines.find(line => line.startsWith('Correct Answer Option:'));
-
-      if (questionLine && optionsLines.length === 4 && correctAnswerLine) {
-        const questionText = questionLine.replace('Question:', '').trim();
-        const optionsText = optionsLines.map(line => line.split(')')[1].trim());
-        const correctAnswerLetter = correctAnswerLine.replace('Correct Answer Option:', '').trim();
-        const correctAnswerIndex = correctAnswerLetter.charCodeAt(0) - 'A'.charCodeAt(0);
-
-        if (storedQuestions.includes(questionText)) {
-          console.log('Duplicate question detected. Retrying...');
-          generateQuestion();
-          return;
-        }
-
-        const updatedQuestions = [questionText, ...storedQuestions].slice(0, 10);
-        console.log("Updated Questions: ", updatedQuestions);
-        await saveAskedQuestions(updatedQuestions);
-        setAskedQuestions(updatedQuestions);
-
-        setQuestion(questionText);
-        setOptions(optionsText);
-        setCorrectOption(optionsText[correctAnswerIndex]);
-      } else {
-        throw new Error('Malformed response from Gemini');
-      }
-    } catch (error) {
-      console.error('Error generating question:', error);
-      setQuestion('Which of these is a good password practice?');
+    if (
+      data.question &&
+      data.answer_a &&
+      data.answer_b &&
+      data.answer_c &&
+      data.answer_d &&
+      data.correct_answer
+    ) {
+      setQuestion(data.question);
+      const optionMap = {
+        answer_a: data.answer_a,
+        answer_b: data.answer_b,
+        answer_c: data.answer_c,
+        answer_d: data.answer_d
+      };
       setOptions([
-        'Using the same password for all accounts',
-        'Using a combination of letters, numbers, and symbols',
-        'Using your birth date',
-        'Sharing your password with friends'
+        data.answer_a,
+        data.answer_b,
+        data.answer_c,
+        data.answer_d
       ]);
-      setCorrectOption('Using a combination of letters, numbers, and symbols');
-    } finally {
-      setIsLoading(false);
+      setCorrectOption(optionMap[data.correct_answer]);
+    } else {
+      throw new Error("Invalid response from backend");
     }
-  };
+  } catch (error) {
+    console.error("Failed to fetch question:", error);
+    setQuestion("Which of these is a good password practice?");
+    setOptions([
+      "Using the same password for all accounts",
+      "Using a combination of letters, numbers, and symbols",
+      "Using your birth date",
+      "Sharing your password with friends"
+    ]);
+    setCorrectOption("Using a combination of letters, numbers, and symbols");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   useEffect(() => {
-    const init = async () => {
-      const stored = await loadAskedQuestions();
-      setAskedQuestions(stored);
-      generateQuestion();
-    };
-    init();
+    generateQuestion();
   }, []);
 
   const handleTimeUp = () => {
@@ -188,7 +109,7 @@ Correct Answer Option:`;
     setSelectedOption(index);
   };
 
-  const validateAnswer = async () => {
+  const validateAnswer = () => {
     if (selectedOption === null) {
       setFeedback('Please select an option first.');
       return;
