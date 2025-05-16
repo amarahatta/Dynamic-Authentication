@@ -37,6 +37,8 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
-genai.py
-debug.log
+server/__pycache__/genai.cpython-313.pyc
 package-lock.json
+.gitignore
+server/genai.py
+debug.log
