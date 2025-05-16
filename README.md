@@ -1,8 +1,6 @@
-# Welcome to your Expo app 👋
+# Dynamic Authenticator
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
-
-## Get started
+### by Team 26
 
 1. Install dependencies
 
@@ -10,41 +8,30 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Input IP address in .env (should be kept in root directory)
+
+   ```
+   BACKEND_URL=<IP_ADDRESS_HERE>:5000
+   ```
+
+3. Setting up backend
+   - Make sure genai.py is in the server directory
+   - You will need gcloud CLI installed and be properly logged in with google account
+
+   ```bash
+   gcloud init
+   gcloud auth application-default login
+   ```
+
+4. Start the backend server
+   
+   ```bash
+   cd server
+   python server.py
+   ```
+
+5. IN A SEPERATE TERMINAL: Start the app in the root directory
 
    ```bash
     npx expo start
    ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
