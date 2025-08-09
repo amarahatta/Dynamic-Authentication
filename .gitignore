@@ -42,3 +42,11 @@ package-lock.json
 .gitignore
 server/genai.py
 debug.log
+
+#backend
+# Python bytecode cache
+__pycache__/
+*.py[cod]
+
+# SQLite test database
+test.db
