@@ -25,6 +25,11 @@
       "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": ["**/*"],
+    "fonts": [
+      "./src/assets/fonts/munro-narrow.ttf",
+      "./src/assets/fonts/munro-small.ttf",
+      "./src/assets/fonts/munro.ttf"
+    ],
     "ios": {
       "supportsTablet": true
     },
